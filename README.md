@@ -12,7 +12,7 @@ npx supabase db reset
 npm run dev
 ```
 
-Откройте `http://localhost:5173/s/graphite`. Demo owner: `owner@graphite.demo` / `ChangeMe123!` только для локального seed. Удалите или смените эти credentials перед общедоступным деплоем.
+Откройте `http://localhost:5173/s/graphite`. В подключённом demo-проекте owner: `owner@graphite.dev` / `ChangeMe123!`. Смените пароль перед общедоступным деплоем.
 
 Основные команды: `npm run typecheck`, `npm run lint`, `npm test`, `npm run build`, `npm run test:e2e`, `npm run tenant:validate`.
 

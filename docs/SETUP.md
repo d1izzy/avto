@@ -9,3 +9,5 @@
 5. Запустите `npm run dev`.
 
 Во frontend разрешены только `VITE_SUPABASE_URL` и publishable key. `SUPABASE_SERVICE_ROLE_KEY` нужен исключительно CLI `tenant:publish` и никогда не должен начинаться с `VITE_`.
+
+Создайте owner через Supabase Auth Dashboard, затем добавьте его UUID в `public.tenant_memberships` с ролью `owner`. Seed намеренно не вставляет строки во внутренние таблицы `auth`, чтобы не зависеть от версии Supabase Auth.

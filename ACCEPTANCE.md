@@ -15,7 +15,7 @@
 - Atomic reschedule rollback — IMPLEMENTED, NOT VERIFIED against PostgreSQL
 - Historical price/service snapshots — IMPLEMENTED
 - Timezone/DST calculation — IMPLEMENTED, NOT VERIFIED against PostgreSQL
-- Owner authentication and membership — IMPLEMENTED, NOT VERIFIED against Supabase Auth
+- Owner authentication and membership — PASS (remote sign-in and owner RPC)
 - Public tenant and availability RPC — PASS (remote smoke test)
 - Public access token hash — IMPLEMENTED, NOT VERIFIED against PostgreSQL
 - Notification outbox deduplication — IMPLEMENTED, external delivery NOT CONFIGURED

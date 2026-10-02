@@ -5,7 +5,6 @@ import { VitePWA } from "vite-plugin-pwa";
 import path from "node:path";
 
 export default defineConfig({
-  test: { exclude: ["tests/e2e/**", "node_modules/**", "dist/**"] },
   plugins: [
     react(),
     tailwindcss(),

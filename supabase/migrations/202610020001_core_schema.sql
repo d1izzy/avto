@@ -1,5 +1,5 @@
 create extension if not exists pgcrypto;
-create extension if not exists btree_gist;
+create extension if not exists btree_gist with schema extensions;
 
 create type public.tenant_status as enum ('preview', 'live', 'suspended');
 create type public.member_role as enum ('owner', 'manager', 'staff');

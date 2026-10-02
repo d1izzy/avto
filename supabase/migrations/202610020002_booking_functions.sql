@@ -63,7 +63,7 @@ begin
   if length(trim(p_customer_name)) < 2 or length(trim(p_customer_phone)) < 7 then raise exception 'VALIDATION_ERROR' using errcode='P0001'; end if;
   select * into v_tenant from public.tenants where slug=p_slug and status in ('preview','live');
   if not found then raise exception 'TENANT_NOT_FOUND' using errcode='P0001'; end if;
-  v_token := encode(digest(p_idempotency_key::text || ':' || v_tenant.id::text || ':booking-access-v1','sha256'),'hex');
+  v_token := encode(extensions.digest(p_idempotency_key::text || ':' || v_tenant.id::text || ':booking-access-v1','sha256'),'hex');
   select id into v_existing from public.bookings where tenant_id=v_tenant.id and idempotency_key=p_idempotency_key;
   if found then return jsonb_build_object('booking_id',v_existing,'token',v_token,'idempotent',true); end if;
   select * into v_settings from public.tenant_settings where tenant_id=v_tenant.id and booking_enabled;
@@ -82,7 +82,7 @@ begin
     on conflict(tenant_id,phone) do update set name=excluded.name,email=coalesce(excluded.email,public.customers.email),updated_at=now() returning id into v_customer_id;
   insert into public.vehicles(tenant_id,customer_id,brand,model,year,license_plate,color,notes) values(v_tenant.id,v_customer_id,p_vehicle->>'brand',p_vehicle->>'model',nullif(p_vehicle->>'year','')::int,nullif(p_vehicle->>'license_plate',''),nullif(p_vehicle->>'color',''),nullif(p_vehicle->>'notes','')) returning id into v_vehicle_id;
   insert into public.bookings(tenant_id,customer_id,vehicle_id,service_id,resource_id,starts_at,ends_at,price,currency,customer_name_snapshot,customer_phone_snapshot,customer_email_snapshot,vehicle_snapshot,service_name_snapshot,access_token_hash,idempotency_key)
-    values(v_tenant.id,v_customer_id,v_vehicle_id,v_service.id,v_resource.id,p_requested_start,v_end,v_service.price,v_service.currency,trim(p_customer_name),trim(p_customer_phone),nullif(trim(p_customer_email),''),p_vehicle,v_service.name,encode(digest(v_token,'sha256'),'hex'),p_idempotency_key) returning id into v_booking_id;
+    values(v_tenant.id,v_customer_id,v_vehicle_id,v_service.id,v_resource.id,p_requested_start,v_end,v_service.price,v_service.currency,trim(p_customer_name),trim(p_customer_phone),nullif(trim(p_customer_email),''),p_vehicle,v_service.name,encode(extensions.digest(v_token,'sha256'),'hex'),p_idempotency_key) returning id into v_booking_id;
   begin
     insert into public.resource_occupancies(tenant_id,resource_id,booking_id,occupancy_type,starts_at,ends_at,reason) values(v_tenant.id,v_resource.id,v_booking_id,'booking',v_occ_start,v_occ_end,'Customer booking');
   exception when exclusion_violation then raise exception 'BOOKING_SLOT_UNAVAILABLE' using errcode='P0001'; end;
@@ -96,13 +96,13 @@ create or replace function public.get_public_booking(p_token text) returns jsonb
     'can_cancel',(s.customer_can_cancel and b.status='confirmed' and b.starts_at > now()+make_interval(mins=>s.cancellation_deadline_minutes)),
     'can_reschedule',(s.customer_can_reschedule and s.reschedule_enabled and b.status='confirmed' and b.starts_at > now()+make_interval(mins=>s.cancellation_deadline_minutes)))
   from public.bookings b join public.tenants t on t.id=b.tenant_id join public.tenant_settings s on s.tenant_id=t.id join public.resources r on r.id=b.resource_id
-  where b.access_token_hash=encode(digest(p_token,'sha256'),'hex');
+  where b.access_token_hash=encode(extensions.digest(p_token,'sha256'),'hex');
 $$;
 
 create or replace function public.cancel_public_booking(p_token text) returns void language plpgsql security definer set search_path = '' as $$
 declare v_booking public.bookings; v_settings public.tenant_settings;
 begin
-  select * into v_booking from public.bookings where access_token_hash=encode(digest(p_token,'sha256'),'hex') for update;
+  select * into v_booking from public.bookings where access_token_hash=encode(extensions.digest(p_token,'sha256'),'hex') for update;
   if not found then raise exception 'BOOKING_NOT_FOUND' using errcode='P0001'; end if;
   if v_booking.status='cancelled' then raise exception 'BOOKING_ALREADY_CANCELLED' using errcode='P0001'; end if;
   select * into v_settings from public.tenant_settings where tenant_id=v_booking.tenant_id;
@@ -114,7 +114,7 @@ end; $$;
 create or replace function public.reschedule_public_booking(p_token text,p_requested_start timestamptz,p_resource_id uuid) returns void language plpgsql security definer set search_path = '' as $$
 declare v_booking public.bookings; v_service public.services; v_settings public.tenant_settings; v_tenant public.tenants; v_end timestamptz;
 begin
-  select * into v_booking from public.bookings where access_token_hash=encode(digest(p_token,'sha256'),'hex') for update;
+  select * into v_booking from public.bookings where access_token_hash=encode(extensions.digest(p_token,'sha256'),'hex') for update;
   if not found then raise exception 'BOOKING_NOT_FOUND' using errcode='P0001'; end if;
   select * into v_settings from public.tenant_settings where tenant_id=v_booking.tenant_id; select * into v_tenant from public.tenants where id=v_booking.tenant_id; select * into v_service from public.services where id=v_booking.service_id;
   if not v_settings.reschedule_enabled or not v_settings.customer_can_reschedule or v_booking.status<>'confirmed' then raise exception 'BOOKING_RESCHEDULE_NOT_ALLOWED' using errcode='P0001'; end if;

@@ -1,0 +1,10 @@
+begin;
+select plan(7);
+select has_table('public','bookings','bookings exists');
+select has_table('public','resource_occupancies','occupancies exists');
+select col_is_pk('public','bookings','id','booking id is primary key');
+select has_index('public','bookings','bookings_tenant_starts_idx','booking lookup index exists');
+select has_function('public','create_public_booking',array['text','uuid','uuid','timestamp with time zone','text','text','text','jsonb','uuid'],'booking RPC exists');
+select has_function('public','reschedule_public_booking',array['text','timestamp with time zone','uuid'],'reschedule RPC exists');
+select has_function('public','cancel_public_booking',array['text'],'cancel RPC exists');
+select * from finish(); rollback;

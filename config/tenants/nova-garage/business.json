@@ -1,0 +1,13 @@
+{
+  "slug": "nova-garage",
+  "name": "NOVA Garage",
+  "description": "Современный городской автосервис: диагностика, обслуживание и честные сроки.",
+  "phone": "+7 495 000-33-44",
+  "email": "service@nova.demo",
+  "address": "Москва, 2-й Силикатный проезд, 9",
+  "timezone": "Europe/Moscow",
+  "currency": "RUB",
+  "accentColor": "#5BE7C4",
+  "status": "preview",
+  "assets": { "hero": "https://images.unsplash.com/photo-1487754180451-c456f719a1fc?auto=format&fit=crop&w=1800&q=85", "icon": "/icon.svg" }
+}

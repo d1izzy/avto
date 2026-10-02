@@ -1,0 +1,13 @@
+{
+  "slug": "graphite",
+  "name": "GRAPHITE Detailing",
+  "description": "Точная работа с кузовом и салоном. Детейлинг без спешки, с понятным результатом.",
+  "phone": "+7 343 000-11-22",
+  "email": "hello@graphite.demo",
+  "address": "Екатеринбург, ул. Машинная, 42",
+  "timezone": "Asia/Yekaterinburg",
+  "currency": "RUB",
+  "accentColor": "#D7FF3F",
+  "status": "preview",
+  "assets": { "hero": "https://images.unsplash.com/photo-1603584173870-7f23fdae1b7a?auto=format&fit=crop&w=1800&q=85", "icon": "/icon.svg" }
+}

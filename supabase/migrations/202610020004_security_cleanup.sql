@@ -4,3 +4,5 @@ create policy rate_limits_no_client_access on public.rate_limits
   with check (false);
 
 alter extension btree_gist set schema extensions;
+
+grant usage on schema private to authenticated;

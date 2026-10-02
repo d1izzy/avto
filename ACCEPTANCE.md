@@ -1,27 +1,33 @@
-# Acceptance
+# Проверки — 2026-10-03
 
-- TypeScript strict — PASS
-- ESLint — PASS
-- Tenant config validation (2 tenants) — PASS
-- Unit tests — PASS (3 tests)
-- Production PWA build — PASS
-- npm audit — PASS (0 vulnerabilities)
-- Database migrations apply — PASS (remote project `mzaghgnxetlrbcpvdvzq`)
-- Seed — PASS (2 tenants, 5 services, 4 resources, 12 working-hour rows)
-- Tenant isolation / RLS SQL assertions — NOT VERIFIED
-- Concurrent booking exclusion — IMPLEMENTED, NOT VERIFIED with two concurrent remote clients
-- Idempotency — PASS (remote smoke test returned one row for repeated key)
-- Cancel and occupancy release — IMPLEMENTED, NOT VERIFIED against PostgreSQL
-- Atomic reschedule rollback — IMPLEMENTED, NOT VERIFIED against PostgreSQL
-- Historical price/service snapshots — IMPLEMENTED
-- Timezone/DST calculation — IMPLEMENTED, NOT VERIFIED against PostgreSQL
-- Owner authentication and membership — PASS (remote sign-in and owner RPC)
-- Public tenant and availability RPC — PASS (remote smoke test)
-- Public access token hash — IMPLEMENTED, NOT VERIFIED against PostgreSQL
-- Notification outbox deduplication — IMPLEMENTED, external delivery NOT CONFIGURED
-- Playwright customer flow — CREATED, NOT VERIFIED without seeded Supabase
-- Real email/SMS/push — NOT CONFIGURED
-- Production deployment — NOT VERIFIED
-- AI/LLM features — ABSENT
+Интерфейс avto переработан по публичному образцу studio-booking-theta.vercel.app. Кабинет образца закрыт авторизацией: его внутренние страницы не копировались и не проверялись.
 
-Этот файл обновляется только по фактически выполненным проверкам.
+## Проверено локально с подключённой Supabase
+
+- TypeScript strict и ESLint — PASS.
+- 14 автоматических проверок схемы записи, ошибок API и утилит — PASS.
+- Production PWA build — PASS. Сборщик сообщает предупреждения о CSS @property Astryx и размере основного пакета; сборка завершена.
+- Клиентский сценарий Chromium desktop + Pixel 7: выбор услуги, дата, ошибки пустой формы, автомобиль, подтверждение, проверка реальной записи через API, перезагрузка, отмена и освобождение времени — PASS.
+- Кабинет desktop + Pixel 7: вход, изменение описания услуги, перезагрузка и чтение нового значения, восстановление исходного описания, сохранение настроек без изменения данных, поиск тестовых заявок, выход — PASS.
+- Публичная навигация, переход с корня на GRAPHITE, модальное окно в пределах экрана, Escape, пустой список «Моя запись» — PASS.
+- Скриншоты главной и окна записи desktop/mobile просмотрены. Проверены отсутствие горизонтального переполнения и подписи полей.
+- Временное описание услуги восстановлено. Созданные тестовые записи отменены; в истории остаются отменённые записи с пометкой E2E verification.
+
+## Исправлено
+
+- UUID seed-данных принимаются как PostgreSQL GUID; даты RPC допускают смещение часового пояса.
+- Ошибки формы видны рядом с полями и в сводке, доступное название поля стабильно после ошибки.
+- Повторное подтверждение блокируется на время отправки; ошибки занятости слота показываются клиенту.
+- Авторизация переключает экран после входа; перед кабинетом проверяется членство именно в этой студии.
+- Услуги редактируются и связываются с боксами; новые услуги скрыты до успешной привязки.
+- Корень сайта и ярлык приложения открывают GRAPHITE, прежней непонятной заставки нет.
+
+## Ограничения
+
+- Email/SMS/push: внешние провайдеры не подключены.
+- AI/LLM: отсутствуют, как требует исходное задание.
+- Перенос записи: по телефону студии; неработающая кнопка убрана.
+- Назначение сотрудников и изменение расписания: через Supabase; инструкция в docs/OWNER-GUIDE.md.
+- RLS межарендаторная изоляция, конкурентные записи двух клиентов, атомарный перенос и переходы DST: отдельные глубокие проверки не выполнены в этой переработке.
+- Сохранение услуги и связей с боксами использует несколько защищённых RLS-запросов, не одну транзакцию.
+- Публикация на Vercel: ожидает заключительной проверки после загрузки.

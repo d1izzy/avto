@@ -1,4 +1,8 @@
-import { createContext, useContext, type ReactNode } from "react";
+import { createContext, useContext, useMemo, type ReactNode } from "react";
+import { Theme } from "@astryxdesign/core/theme";
+import { VStack, Heading, Text } from "@astryxdesign/core";
+import { studioTheme } from "@/app/theme";
+import { Loading, Retry } from "@/components/studio-ui";
 import { useParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { getPublicTenant } from "./api";
@@ -9,10 +13,10 @@ const TenantContext = createContext<PublicTenantBundle | null>(null);
 export function TenantProvider({ children }: { children: ReactNode }) {
   const { tenantSlug = "" } = useParams();
   const query = useQuery({ queryKey: ["tenant", tenantSlug], queryFn: () => getPublicTenant(tenantSlug), retry: 1 });
-  if (query.isPending) return <main className="grid min-h-screen place-items-center"><p className="text-white/60">Загружаем сервис...</p></main>;
-  if (query.isError || !query.data) return <main className="grid min-h-screen place-items-center px-6 text-center"><div><h1 className="text-2xl font-bold">Сервис не найден</h1><p className="mt-2 text-white/60">Проверьте адрес или попробуйте позже.</p></div></main>;
-  const accent = query.data.tenant.accent_color;
-  return <TenantContext.Provider value={query.data}><div style={{ "--accent": accent } as React.CSSProperties}>{children}</div></TenantContext.Provider>;
+  const theme = useMemo(() => studioTheme(query.data?.tenant.accent_color, `studio-${tenantSlug}`), [query.data?.tenant.accent_color, tenantSlug]);
+  if (query.isPending) return <Loading label="Загружаем студию…" />;
+  if (query.isError || !query.data) return <VStack as="main" gap={4} padding={8} align="center"><Heading level={1}>Сервис не найден</Heading><Text color="secondary">Проверьте адрес или попробуйте позже.</Text><Retry onClick={() => query.refetch()} /></VStack>;
+  return <TenantContext.Provider value={query.data}><Theme theme={theme} mode="dark">{children}</Theme></TenantContext.Provider>;
 }
 
 // Context hooks intentionally live beside their provider.

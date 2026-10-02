@@ -1,16 +1,17 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { ArrowLeft, ArrowRight, Check, Loader2 } from "lucide-react";
+import { Button, Card, Dialog, DialogHeader, Grid, HStack, Text, VStack } from "@astryxdesign/core";
+import { ArrowLeft, ArrowUpRight, Check } from "lucide-react";
 import { useTenant } from "@/features/tenant/context";
 import { getAvailability, createBooking } from "@/features/booking/api";
 import { bookingSchema, type BookingForm } from "@/features/booking/schema";
-import { createIdempotencyKey, durationLabel, money } from "@/lib/utils";
-import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
+import { createIdempotencyKey, durationLabel, money, dateTime } from "@/lib/utils";
+import { DetailRow, Field, Loading, Notice, Retry } from "@/components/studio-ui";
+import { localDate, rememberBooking } from "@/features/booking/local-bookings";
+import type { AvailabilitySlot } from "@/types/database";
 
-const steps = ["Услуга", "Автомобиль", "Дата и время", "Подтверждение"];
+const steps = ["Выберите услугу", "Дата и время", "Ваш автомобиль", "Проверьте запись"];
 const initial = { customerName: "", customerPhone: "", customerEmail: "", vehicleBrand: "", vehicleModel: "", licensePlate: "" };
 
 export function BookingFlow() {
@@ -19,39 +20,68 @@ export function BookingFlow() {
   const preselected = services.some((s) => s.id === params.get("service")) ? params.get("service")! : "";
   const [step, setStep] = useState(preselected ? 1 : 0);
   const [serviceId, setServiceId] = useState(preselected);
-  const [date, setDate] = useState(""); const [slot, setSlot] = useState<{ starts_at: string; resource_id: string } | null>(null);
-  const [form, setForm] = useState(initial); const [errors, setErrors] = useState<Record<string, string>>({});
   const [today] = useState(() => new Date());
+  const minDate = localDate(today, tenant.timezone);
+  const maxDate = localDate(new Date(today.getTime() + settings.maximum_booking_days * 86400000), tenant.timezone);
+  const [date, setDate] = useState(minDate); const [slot, setSlot] = useState<AvailabilitySlot | null>(null);
+  const [form, setForm] = useState(initial); const [errors, setErrors] = useState<Record<string, string>>({});
+  const errorRef = useRef<HTMLElement>(null);
   const service = services.find((item) => item.id === serviceId);
-  const availability = useQuery({ queryKey: ["availability", tenant.slug, serviceId, date], queryFn: () => getAvailability(tenant.slug, serviceId, date), enabled: Boolean(serviceId && date) });
+  const availability = useQuery({ queryKey: ["availability", tenant.slug, serviceId, date], queryFn: () => getAvailability(tenant.slug, serviceId, date), enabled: Boolean(serviceId && date >= minDate && date <= maxDate), staleTime: 0 });
   const [idempotencyKey] = useState(() => createIdempotencyKey());
-  const mutation = useMutation({ mutationFn: (values: BookingForm) => createBooking(tenant.slug, values, idempotencyKey), onSuccess: ({ token }) => navigate(`/s/${tenant.slug}/booking/${token}`) });
-  const maxDate = new Date(today.getTime() + settings.maximum_booking_days * 86400000).toISOString().slice(0, 10);
-  const minDate = today.toISOString().slice(0, 10);
+  const mutation = useMutation({ mutationFn: (values: BookingForm) => createBooking(tenant.slug, values, idempotencyKey), onSuccess: ({ token }) => { rememberBooking(tenant.slug, token); navigate(`/s/${tenant.slug}/booking/${token}`, { replace: true }); } });
+  const close = () => { if (!mutation.isPending) navigate(`/s/${tenant.slug}`); };
+  const days = Array.from({ length: 7 }, (_, i) => localDate(new Date(today.getTime() + i * 86400000), tenant.timezone)).filter((d) => d <= maxDate);
+  // A customer chooses a time. The first available box at that time is assigned automatically.
+  const slots = (availability.data ?? []).filter((s, index, all) => all.findIndex((other) => other.starts_at === s.starts_at) === index);
 
-  function nextFromVehicle() {
+  function vehicleNext() {
     const result = bookingSchema.pick({ customerName: true, customerPhone: true, customerEmail: true, vehicleBrand: true, vehicleModel: true, licensePlate: true }).safeParse(form);
-    if (!result.success) { setErrors(Object.fromEntries(result.error.issues.map((issue) => [String(issue.path[0]), issue.message]))); return; }
-    setErrors({}); setStep(2);
+    if (!result.success) { setErrors(Object.fromEntries(result.error.issues.map((i) => [String(i.path[0]), i.message]))); requestAnimationFrame(() => errorRef.current?.focus()); return; }
+    setErrors({}); setStep(3);
   }
   function submit() {
-    if (!slot || !service) return;
+    if (mutation.isPending || !slot || !service) return;
     const result = bookingSchema.safeParse({ ...form, serviceId, resourceId: slot.resource_id, startsAt: slot.starts_at });
-    if (!result.success) return;
+    if (!result.success) {
+      setErrors(Object.fromEntries(result.error.issues.map((i) => [String(i.path[0]), i.message])));
+      setStep(result.error.issues.some((i) => ["serviceId", "resourceId", "startsAt"].includes(String(i.path[0]))) ? 1 : 2); return;
+    }
     mutation.mutate(result.data);
   }
-  return <main className="mx-auto min-h-screen max-w-3xl px-4 pb-28 pt-24">
-    <button onClick={() => step ? setStep(step - 1) : navigate(-1)} className="mb-8 flex min-h-11 items-center gap-2 text-sm text-white/65 hover:text-white"><ArrowLeft size={18} /> Назад</button>
-    <div className="mb-8 flex gap-2" aria-label={`Шаг ${step + 1} из ${steps.length}`}>{steps.map((name, index) => <div key={name} className="flex-1"><div className={`h-1 ${index <= step ? "bg-[var(--accent)]" : "bg-white/10"}`} /><span className="mt-2 hidden text-xs text-white/45 sm:block">{name}</span></div>)}</div>
-    <p className="text-sm font-medium text-[var(--accent)]">Шаг {step + 1} из {steps.length}</p><h1 className="mt-2 text-3xl font-bold">{steps[step]}</h1>
-    <div className="mt-8">
-      {step === 0 && <div className="grid gap-3">{services.map((item) => <button key={item.id} onClick={() => { setServiceId(item.id); setStep(1); }} className="flex min-h-24 items-center justify-between gap-4 rounded-lg border border-white/10 bg-white/[0.04] p-5 text-left hover:border-[var(--accent)]"><div><strong>{item.name}</strong><p className="mt-1 text-sm text-white/50">{durationLabel(item.duration_minutes)}</p></div><span className="shrink-0 font-semibold">{money(item.price, item.currency)}</span></button>)}</div>}
-      {step === 1 && <div className="space-y-5"><div className="grid gap-4 sm:grid-cols-2"><Field label="Марка" name="vehicleBrand" value={form.vehicleBrand} error={errors.vehicleBrand} set={setForm} /><Field label="Модель" name="vehicleModel" value={form.vehicleModel} error={errors.vehicleModel} set={setForm} /><Field label="Госномер (необязательно)" name="licensePlate" value={form.licensePlate} error={errors.licensePlate} set={setForm} /></div><div className="border-t border-white/10 pt-6"><h2 className="mb-4 font-semibold">Контактные данные</h2><div className="grid gap-4 sm:grid-cols-2"><Field label="Имя" name="customerName" value={form.customerName} error={errors.customerName} set={setForm} /><Field label="Телефон" name="customerPhone" type="tel" value={form.customerPhone} error={errors.customerPhone} set={setForm} /><Field label="Email (необязательно)" name="customerEmail" type="email" value={form.customerEmail} error={errors.customerEmail} set={setForm} /></div></div><Button onClick={nextFromVehicle} className="w-full sm:w-auto">Продолжить <ArrowRight size={18} /></Button></div>}
-      {step === 2 && <div><label className="mb-2 block text-sm font-medium" htmlFor="date">Дата</label><Input id="date" type="date" min={minDate} max={maxDate} value={date} onChange={(e) => { setDate(e.target.value); setSlot(null); }} /><div className="mt-6 grid grid-cols-2 gap-2 sm:grid-cols-4">{availability.isFetching && <p className="col-span-full flex items-center gap-2 text-white/60"><Loader2 className="animate-spin" size={18} /> Ищем время...</p>}{availability.isError && <p className="col-span-full text-red-400">Не удалось загрузить время.</p>}{availability.data?.length === 0 && <p className="col-span-full py-6 text-white/55">На эту дату свободного времени нет.</p>}{availability.data?.map((item) => <button key={`${item.resource_id}-${item.starts_at}`} onClick={() => setSlot(item)} className={`min-h-12 rounded-md border text-sm font-semibold ${slot?.starts_at === item.starts_at && slot.resource_id === item.resource_id ? "border-[var(--accent)] bg-[var(--accent)] text-black" : "border-white/15 bg-white/5 hover:border-white/40"}`}>{new Intl.DateTimeFormat("ru-RU", { timeZone: tenant.timezone, hour: "2-digit", minute: "2-digit" }).format(new Date(item.starts_at))}</button>)}</div>{slot && <Button className="mt-8 w-full sm:w-auto" onClick={() => setStep(3)}>Продолжить <ArrowRight size={18} /></Button>}</div>}
-      {step === 3 && service && slot && <div><Card className="divide-y divide-white/10 p-2"><Summary label="Услуга" value={service.name} /><Summary label="Автомобиль" value={`${form.vehicleBrand} ${form.vehicleModel}${form.licensePlate ? ` · ${form.licensePlate}` : ""}`} /><Summary label="Дата и время" value={new Intl.DateTimeFormat("ru-RU", { timeZone: tenant.timezone, dateStyle: "long", timeStyle: "short" }).format(new Date(slot.starts_at))} /><Summary label="Длительность" value={durationLabel(service.duration_minutes)} /><Summary label="Стоимость" value={money(service.price, service.currency)} /><Summary label="Адрес" value={tenant.address ?? "Уточняется"} /></Card>{mutation.isError && <p className="mt-4 rounded-md bg-red-500/10 p-4 text-sm text-red-300">{mutation.error.message}</p>}<Button onClick={submit} disabled={mutation.isPending} className="mt-6 w-full">{mutation.isPending ? <><Loader2 className="animate-spin" size={18} /> Создаём запись...</> : <><Check size={18} /> Подтвердить запись</>}</Button><p className="mt-3 text-center text-xs text-white/40">Нажимая кнопку, вы подтверждаете корректность данных.</p></div>}
-    </div>
-  </main>;
+  function chooseDate(next: string) { setDate(next); setSlot(null); mutation.reset(); }
+  return <Dialog isOpen onOpenChange={close} width={560} maxHeight="90dvh" purpose={mutation.isPending ? "required" : "form"} padding={6} aria-label="Онлайн-запись">
+    <VStack gap={5}>
+      <DialogHeader title={steps[step]} subtitle={`Шаг ${step + 1} из 4 · ${tenant.name}`} onOpenChange={mutation.isPending ? undefined : close} />
+      <HStack gap={2} aria-label={`Шаг ${step + 1} из 4`}>{steps.map((s, i) => <VStack key={s} className={`h-1 flex-1 rounded-full ${i <= step ? "bg-accent-bg" : "bg-muted"}`} />)}</HStack>
+      {!settings.booking_enabled ? <Notice>Студия временно приостановила онлайн-запись. Свяжитесь с ней по телефону.</Notice> : <>
+      {step > 0 && <Button label="Назад" variant="ghost" icon={<ArrowLeft />} onClick={() => setStep(step - 1)} isDisabled={mutation.isPending} />}
+      {step === 0 && <VStack gap={0} className="overflow-hidden rounded-xl border border-border">{services.map((item) => <button key={item.id} onClick={() => { setServiceId(item.id); setSlot(null); setErrors({}); mutation.reset(); setStep(1); }} className="border-b border-border text-left last:border-0 hover:bg-muted"><HStack padding={4} gap={4} justify="between" align="center"><VStack gap={2}><Text weight="semibold">{item.name}</Text><Text color="secondary" size="sm">{durationLabel(item.duration_minutes)}</Text></VStack><Text weight="medium">{money(item.price, item.currency)}</Text><ArrowUpRight aria-hidden className="size-4 shrink-0 text-accent" /></HStack></button>)}</VStack>}
+      {step === 1 && <VStack gap={4}>
+        <Text color="secondary">{service?.name} · {service && durationLabel(service.duration_minutes)}</Text>
+        <Grid columns={7} gap={1}>{days.map((d) => <button key={d} aria-pressed={d === date} onClick={() => chooseDate(d)} className={`min-h-16 rounded-lg border ${d === date ? "border-accent-bg bg-accent-muted text-accent" : "border-border bg-muted text-secondary"}`}><VStack gap={1} align="center"><Text size="sm" color="inherit">{new Intl.DateTimeFormat("ru-RU", { weekday: "short", timeZone: "UTC" }).format(new Date(`${d}T12:00:00Z`))}</Text><Text weight="bold" color="inherit">{d.slice(-2)}</Text></VStack></button>)}</Grid>
+        <Field label="Другая дата" aria-label="Дата" type="date" min={minDate} max={maxDate} value={date} onChange={(e) => chooseDate(e.target.value)} />
+        <Text size="sm" color="secondary">Свободное время · часовой пояс студии ({tenant.timezone})</Text>
+        {availability.isFetching ? <Loading label="Ищем свободное время…" /> : availability.isError ? <><Notice error>Не удалось загрузить время.</Notice><Retry onClick={() => availability.refetch()} /></> : slots.length === 0 ? <Notice>На эту дату свободного времени нет. Выберите другой день.</Notice> : <Grid columns={4} gap={2}>{slots.map((item) => <Button key={item.starts_at} label={new Intl.DateTimeFormat("ru-RU", { timeZone: tenant.timezone, hour: "2-digit", minute: "2-digit" }).format(new Date(item.starts_at))} variant={slot?.starts_at === item.starts_at ? "primary" : "secondary"} size="lg" aria-pressed={slot?.starts_at === item.starts_at} onClick={() => { setSlot(item); mutation.reset(); }} />)}</Grid>}
+        {slot && <Text color="secondary" size="sm">Ориентир выдачи: {dateTime(slot.ends_at, tenant.timezone)}</Text>}
+        <Button variant="primary" label="Продолжить" size="lg" isDisabled={!slot || availability.isFetching} onClick={() => setStep(2)} />
+      </VStack>}
+      {step === 2 && <form onSubmit={(e) => { e.preventDefault(); vehicleNext(); }} noValidate><VStack gap={4}>
+        {!!Object.keys(errors).length && <VStack ref={errorRef} tabIndex={-1} gap={2}><Notice error>Проверьте отмеченные поля. Введённые данные сохранены.</Notice>{Object.entries(errors).map(([field, message]) => <a className="text-sm text-error underline" key={field} href={`#${field}`}>{message}</a>)}</VStack>}
+        <Grid columns={1} gap={4} className="sm:grid-cols-2">{([
+          ["customerName", "Имя", "text", "given-name"], ["customerPhone", "Телефон", "tel", "tel"],
+          ["vehicleBrand", "Марка", "text", "off"], ["vehicleModel", "Модель", "text", "off"],
+          ["licensePlate", "Госномер (необязательно)", "text", "off"], ["customerEmail", "Email (необязательно)", "email", "email"],
+        ] as const).map(([key, label, type, autoComplete]) => <Field key={key} name={key} label={label} type={type} autoComplete={autoComplete} value={form[key]} error={errors[key]} onChange={(e) => setForm((prev) => ({ ...prev, [key]: e.target.value }))} />)}</Grid>
+        <Button variant="primary" label="Проверить запись" type="submit" size="lg" />
+      </VStack></form>}
+      {step === 3 && service && slot && <VStack gap={4}>
+        <Card padding={4}><DetailRow label="Услуга">{service.name}</DetailRow><DetailRow label="Дата и время">{dateTime(slot.starts_at, tenant.timezone)}</DetailRow><DetailRow label="Автомобиль">{form.vehicleBrand} {form.vehicleModel}</DetailRow><DetailRow label="Контакт">{form.customerName} · {form.customerPhone}</DetailRow><DetailRow label="Адрес">{tenant.address ?? "Уточняется"}</DetailRow><DetailRow label="Стоимость">{money(service.price, service.currency)}</DetailRow></Card>
+        {mutation.isError && <><Notice error>{mutation.error.message || "Не удалось создать запись. Попробуйте снова."}</Notice><Button label="Выбрать другое время" variant="secondary" onClick={() => { setStep(1); setSlot(null); availability.refetch(); mutation.reset(); }} /></>}
+        <Button variant="primary" label={mutation.isPending ? "Создаём запись…" : "Подтвердить запись"} onClick={submit} isLoading={mutation.isPending} isDisabled={mutation.isPending} size="lg" icon={<Check />} />
+        <Text size="sm" color="secondary" justify="center">Нажимая кнопку, вы подтверждаете корректность данных.</Text>
+      </VStack>}
+      </>}
+    </VStack>
+  </Dialog>;
 }
-
-function Field({ label, name, value, type = "text", error, set }: { label: string; name: keyof typeof initial; value: string; type?: string; error?: string; set: React.Dispatch<React.SetStateAction<typeof initial>> }) { return <label className="block text-sm"><span className="mb-2 block font-medium">{label}</span><Input type={type} value={value} onChange={(e) => set((prev) => ({ ...prev, [name]: e.target.value }))} aria-invalid={Boolean(error)} />{error && <span className="mt-1 block text-xs text-red-400">{error}</span>}</label>; }
-function Summary({ label, value }: { label: string; value: string }) { return <div className="flex justify-between gap-5 px-3 py-4 text-sm"><span className="text-white/50">{label}</span><strong className="text-right font-medium">{value}</strong></div>; }

@@ -22,7 +22,9 @@ export class AppError extends Error {
 }
 
 export function toAppError(error: unknown) {
-  const raw = error instanceof Error ? error.message : String(error);
+  const raw = typeof error === "object" && error !== null && "message" in error && typeof error.message === "string"
+    ? error.message
+    : String(error);
   const code = (Object.keys(messages) as ErrorCode[]).find((key) => raw.includes(key));
   return new AppError(code ?? "UNKNOWN");
 }

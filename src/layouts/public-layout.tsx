@@ -1,20 +1,21 @@
-import { Outlet, Link } from "react-router-dom";
-import { Phone, MapPin } from "lucide-react";
+import { Outlet, Link, NavLink, useLocation } from "react-router-dom";
+import { AppShell, HStack, VStack, Text } from "@astryxdesign/core";
+import { CalendarCheck2, House, Sparkles, UserRound } from "lucide-react";
 import { useTenant } from "@/features/tenant/context";
+import { cn } from "@/lib/utils";
 
 export function PublicLayout() {
-  const { tenant } = useTenant();
-  return <div className="min-h-screen bg-[#0a0a0a] text-white">
-    <header className="fixed inset-x-0 top-0 z-40 border-b border-white/10 bg-black/75 backdrop-blur-xl">
-      <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4">
-        <Link to={`/s/${tenant.slug}`} className="flex min-w-0 items-center gap-3 font-bold"><span className="size-2.5 shrink-0 bg-[var(--accent)]" /><span className="truncate">{tenant.name}</span></Link>
-        <div className="flex items-center gap-1">
-          {tenant.phone && <a href={`tel:${tenant.phone}`} className="grid size-11 place-items-center rounded-md hover:bg-white/10" aria-label="Позвонить"><Phone size={19} /></a>}
-          {tenant.address && <a href={`https://maps.google.com/?q=${encodeURIComponent(tenant.address)}`} target="_blank" rel="noreferrer" className="grid size-11 place-items-center rounded-md hover:bg-white/10" aria-label="Открыть карту"><MapPin size={19} /></a>}
-        </div>
-      </div>
-    </header>
-    <Outlet />
-    <footer className="border-t border-white/10 px-4 py-8 text-center text-sm text-white/40">{tenant.name} · онлайн-запись</footer>
-  </div>;
+  const { tenant } = useTenant(); const location = useLocation(); const base = `/s/${tenant.slug}`;
+  if (location.pathname.includes("/owner")) return <Outlet />;
+  return <AppShell height="auto" variant="wash" contentPadding={0} topNav={
+    <HStack as="header" justify="between" align="center" paddingBlock={4} paddingInline={5} maxWidth={1080} width="100%" className="mx-auto">
+      <Link to={base} aria-label={`${tenant.name} — главная`}><HStack gap={3} align="center">{tenant.logo_url ? <img src={tenant.logo_url} alt="" className="size-9 rounded-lg object-contain" /> : <Sparkles aria-hidden className="size-7 text-accent" />}<Text weight="bold">{tenant.name}</Text></HStack></Link>
+      <Link to={`${base}/owner`} aria-label="Кабинет студии" className="rounded-full border border-border p-3 text-secondary hover:text-primary"><UserRound aria-hidden className="size-5" /></Link>
+    </HStack>
+  }>
+    <VStack gap={8} maxWidth={1080} width="100%" paddingInline={5} className="mx-auto pb-32"><Outlet /><Text as="p" size="sm" color="secondary" justify="center">{tenant.name} · онлайн-запись</Text></VStack>
+    <HStack as="nav" aria-label="Главная навигация" gap={1} padding={2} className="fixed bottom-[max(var(--spacing-5),env(safe-area-inset-bottom))] left-1/2 z-40 -translate-x-1/2 rounded-full border border-border bg-popover shadow-lg">
+      {[{ to: base, label: "Главная", icon: House, end: true }, { to: `${base}/services`, label: "Услуги", icon: Sparkles }, { to: `${base}/account`, label: "Моя запись", icon: CalendarCheck2 }].map(({ to, label, icon: Icon, end }) => <NavLink key={to} to={to} end={end} className={({ isActive }) => cn("rounded-full px-4 py-3 text-sm whitespace-nowrap transition-colors", isActive ? "bg-muted text-primary" : "text-secondary hover:text-primary")}><HStack gap={2} align="center"><Icon className="size-4" aria-hidden /><Text color="inherit" size="sm">{label}</Text></HStack></NavLink>)}
+    </HStack>
+  </AppShell>;
 }

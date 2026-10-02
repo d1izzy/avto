@@ -12,13 +12,13 @@ export default defineConfig({
       registerType: "autoUpdate",
       includeAssets: ["icon.svg"],
       manifest: {
-        name: "ServiceSlot",
-        short_name: "ServiceSlot",
-        description: "Online booking for service businesses",
+        name: "GRAPHITE · Запись в студию",
+        short_name: "GRAPHITE",
+        description: "Онлайн-запись в студию детейлинга",
         theme_color: "#0a0a0a",
         background_color: "#0a0a0a",
         display: "standalone",
-        start_url: "/",
+        start_url: "/s/graphite",
         icons: [{ src: "/icon.svg", sizes: "any", type: "image/svg+xml", purpose: "any maskable" }]
       },
       workbox: {

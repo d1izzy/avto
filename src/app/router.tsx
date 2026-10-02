@@ -1,13 +1,15 @@
 import { lazy, Suspense } from "react";
+import { Loading } from "@/components/studio-ui";
+import { VStack, Heading } from "@astryxdesign/core";
 import { Navigate, createBrowserRouter } from "react-router-dom";
 import { TenantProvider } from "@/features/tenant/context";
 import { OwnerGuard } from "@/features/auth/owner-guard";
 import { PublicLayout } from "@/layouts/public-layout";
 import { OwnerLayout } from "@/layouts/owner-layout";
 import { TenantHome } from "@/pages/tenant-home";
-import { BookingFlow } from "@/pages/booking-flow";
 import { BookingDetail } from "@/pages/booking-detail";
 import { OwnerLogin } from "@/pages/owner-login";
+import { CustomerBookings, InstallPage } from "@/pages/customer-pages";
 
 const OwnerPages = {
   Dashboard: lazy(() => import("@/pages/owner-pages").then((m) => ({ default: m.OwnerDashboard }))),
@@ -18,15 +20,17 @@ const OwnerPages = {
   Customers: lazy(() => import("@/pages/owner-pages").then((m) => ({ default: m.OwnerCustomers }))),
   Settings: lazy(() => import("@/pages/owner-pages").then((m) => ({ default: m.OwnerSettings })))
 };
-const pending = <div className="grid min-h-[50vh] place-items-center text-white/50">Загрузка...</div>;
+const pending = <Loading />;
 
 export const router = createBrowserRouter([
-  { path: "/", element: <main className="grid min-h-screen place-items-center bg-[#0a0a0a] px-4 text-center text-white"><div><h1 className="text-3xl font-bold">ServiceSlot</h1><p className="mt-2 text-white/50">Откройте ссылку вашего сервиса.</p></div></main> },
+  { path: "/", element: <Navigate to="/s/graphite" replace /> },
   { path: "/s/:tenantSlug", element: <TenantProvider><PublicLayout /></TenantProvider>, children: [
     { index: true, element: <TenantHome /> },
     { path: "services", element: <TenantHome /> },
-    { path: "book", element: <BookingFlow /> },
+    { path: "book", element: <TenantHome booking /> },
     { path: "booking/:token", element: <BookingDetail /> },
+    { path: "account", element: <CustomerBookings /> },
+    { path: "install", element: <InstallPage /> },
     { path: "owner", element: <OwnerLogin /> },
     { element: <OwnerGuard />, children: [{ element: <OwnerLayout />, children: [
       { index: true, element: <Navigate to="dashboard" replace /> },
@@ -39,5 +43,5 @@ export const router = createBrowserRouter([
       { path: "owner/settings", element: <Suspense fallback={pending}><OwnerPages.Settings /></Suspense> }
     ] }] }
   ] },
-  { path: "*", element: <main className="grid min-h-screen place-items-center bg-[#0a0a0a] text-white"><h1>Страница не найдена</h1></main> }
+  { path: "*", element: <VStack as="main" padding={8}><Heading level={1}>Страница не найдена</Heading></VStack> }
 ]);

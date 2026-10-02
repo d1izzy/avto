@@ -10,13 +10,17 @@
     "lint": "eslint . --max-warnings 0",
     "test": "vitest run --config vitest.config.ts",
     "test:e2e": "playwright test",
+    "astryx": "node node_modules/@astryxdesign/cli/clients/cli/bin/astryx.mjs",
     "tenant:new": "tsx scripts/tenant-new.ts",
     "tenant:validate": "tsx scripts/tenant-validate.ts",
     "tenant:publish": "tsx scripts/tenant-publish.ts",
     "tenant:verify": "tsx scripts/tenant-verify.ts"
   },
   "dependencies": {
+    "@astryxdesign/core": "0.6.5",
+    "@astryxdesign/theme-neutral": "0.6.5",
     "@radix-ui/react-slot": "1.2.3",
+    "@stylexjs/stylex": "0.19.1",
     "@supabase/supabase-js": "2.117.2",
     "@tanstack/react-query": "5.104.1",
     "class-variance-authority": "0.7.1",
@@ -30,6 +34,7 @@
     "zod": "4.1.12"
   },
   "devDependencies": {
+    "@astryxdesign/cli": "0.6.5",
     "@eslint/js": "9.38.0",
     "@playwright/test": "1.56.1",
     "@tailwindcss/vite": "4.1.14",
@@ -40,6 +45,7 @@
     "eslint": "9.38.0",
     "eslint-plugin-react-hooks": "7.0.0",
     "eslint-plugin-react-refresh": "0.4.24",
+    "shadcn": "4.21.1",
     "tailwindcss": "4.1.14",
     "tsx": "4.20.6",
     "typescript": "5.9.3",

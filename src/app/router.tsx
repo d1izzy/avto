@@ -10,6 +10,7 @@ import { TenantHome } from "@/pages/tenant-home";
 import { BookingDetail } from "@/pages/booking-detail";
 import { OwnerLogin } from "@/pages/owner-login";
 import { CustomerBookings, InstallPage } from "@/pages/customer-pages";
+import { emailCallback } from "@/lib/supabase";
 
 const OwnerPages = {
   Dashboard: lazy(() => import("@/pages/owner-pages").then((m) => ({ default: m.OwnerDashboard }))),
@@ -23,7 +24,7 @@ const OwnerPages = {
 const pending = <Loading />;
 
 export const router = createBrowserRouter([
-  { path: "/", element: <Navigate to="/s/graphite" replace /> },
+  { path: "/", element: <Navigate to={emailCallback.present ? "/s/graphite/account" : "/s/graphite"} replace /> },
   { path: "/s/:tenantSlug", element: <TenantProvider><PublicLayout /></TenantProvider>, children: [
     { index: true, element: <TenantHome /> },
     { path: "services", element: <TenantHome /> },

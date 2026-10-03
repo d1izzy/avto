@@ -159,6 +159,8 @@ test("signed-in profile syncs a claimed booking across devices and denies anonym
   await backend.rpc("owner_catalog", { p_slug: "nova-garage" }, false);
   await backend.rpc("customer_claim_booking", { p_token: "invalid" }, false);
   await login(page); await page.goto("/s/graphite/account");
+  await expect(page.getByText("Почта подтверждена", { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "Редактировать данные" }).click();
   await expect(page.getByRole("button", { name: "Сохранить профиль" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Получить ссылку" })).toHaveCount(0);
   const services = await backend.rpc<{ services: Service[] }>("owner_catalog", { p_slug: "graphite" });
@@ -178,7 +180,7 @@ test("signed-in profile syncs a claimed booking across devices and denies anonym
   try {
     await clean.addInitScript(({ session, key }) => localStorage.setItem(key, JSON.stringify(session)), { session: backend.session, key: "sb-mzaghgnxetlrbcpvdvzq-auth-token" });
     const other = await clean.newPage(); await other.goto(`${test.info().project.use.baseURL}/s/graphite/account`);
-    await expect(other.getByRole("button", { name: "Сохранить профиль" })).toBeVisible();
+    await expect(other.getByText("Почта подтверждена", { exact: true })).toBeVisible();
     await expect(other.locator(`a[href$="/booking/${booking.token}"]`)).toBeVisible();
     expect(await other.evaluate(() => localStorage.getItem("studio-bookings:graphite"))).toBeNull();
     await other.getByRole("button", { name: "Выйти из профиля" }).click();

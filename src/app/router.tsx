@@ -30,6 +30,7 @@ export const router = createBrowserRouter([
     { path: "book", element: <TenantHome booking /> },
     { path: "booking/:token", element: <BookingDetail /> },
     { path: "account", element: <CustomerBookings /> },
+    { path: "booking", element: <CustomerBookings profile={false} /> },
     { path: "install", element: <InstallPage /> },
     { path: "owner", element: <OwnerLogin /> },
     { element: <OwnerGuard />, children: [{ element: <OwnerLayout />, children: [

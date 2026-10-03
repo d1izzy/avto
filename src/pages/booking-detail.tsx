@@ -25,6 +25,6 @@ export function BookingDetail() {
     {!cancelled && <Button label="Добавить в календарь" variant="secondary" onClick={() => downloadIcs(booking)} icon={<Download />} />}
     {booking.can_cancel && !cancelled && <VStack gap={3}>{confirmCancel ? <Card padding={5}><VStack gap={4}><Heading level={3}>Отменить запись?</Heading><Text color="secondary">Выбранное время снова станет доступно другим клиентам.</Text>{cancel.isError && <Notice error>{cancel.error.message}</Notice>}<HStack gap={2} wrap="wrap"><Button label="Отменить запись" variant="destructive" onClick={() => cancel.mutate()} isLoading={cancel.isPending} /><Button label="Назад" variant="ghost" onClick={() => setConfirmCancel(false)} /></HStack></VStack></Card> : <Button label="Отменить запись" variant="ghost" onClick={() => setConfirmCancel(true)} />}</VStack>}
     {!cancelled && tenant.phone && <VStack gap={3}><Text color="secondary" size="sm">Если нужно перенести время или уточнить детали, свяжитесь со студией.</Text><Button variant="secondary" label="Позвонить в студию" href={`tel:${tenant.phone}`} icon={<Phone />} /></VStack>}
-    <Link to={`/s/${tenant.slug}/account`} className="text-center text-accent">Мои записи →</Link>
+    <Link to={`/s/${tenant.slug}/booking`} className="text-center text-accent">Мои записи →</Link>
   </VStack>;
 }

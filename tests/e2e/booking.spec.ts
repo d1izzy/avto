@@ -37,10 +37,20 @@ test("customer can confirm, reload and cancel a persisted booking", async ({ pag
 
   try {
     await page.goto("/s/graphite/book");
-    await page.getByRole("button", { name: new RegExp(service.name) }).click();
+    await page.getByRole("dialog").getByRole("button", { name: new RegExp(service.name) }).click();
     await page.getByLabel("Дата", { exact: true }).fill(date);
     await page.getByRole("button", { name: slotLabel, exact: true }).first().click();
     await page.getByRole("button", { name: /Продолжить/ }).click();
+    // Wheel input must expose the last form action without locator auto-scroll.
+    const originalViewport = page.viewportSize()!;
+    await page.setViewportSize({ width: 375, height: 420 });
+    const scroll = page.getByTestId("booking-scroll");
+    await scroll.hover();
+    await page.mouse.wheel(0, 2000);
+    await expect.poll(async () => scroll.evaluate((e) => e.scrollTop > 0)).toBe(true);
+    const proceed = page.getByRole("button", { name: "Проверить запись", exact: true });
+    await expect(proceed).toBeInViewport();
+    await page.setViewportSize(originalViewport);
     await page.getByRole("button", { name: /Проверить запись/ }).click();
     await expect(page.getByRole("alert")).toContainText("Проверьте отмеченные поля");
     await page.getByLabel("Марка", { exact: true }).fill("Volvo");

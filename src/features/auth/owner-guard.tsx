@@ -18,6 +18,6 @@ export function OwnerGuard() {
   if (session === undefined) return <Loading label="Проверяем доступ…" />;
   if (!session) return <Navigate to={`/s/${tenantSlug}/owner`} replace />;
   if (access.isPending) return <Loading label="Проверяем права…" />;
-  if (access.isError || !access.data) return <VStack gap={4} padding={8}><Notice error>Нет доступа к этой студии. Войдите с учётной записью её владельца или сотрудника.</Notice><Button label="Выйти" onClick={() => supabase.auth.signOut()} /></VStack>;
+  if (access.isError || access.data?.role !== "owner") return <VStack gap={4} padding={8}><Notice error>Нет доступа к этой студии. Войдите с учётной записью её владельца.</Notice><Button label="Выйти" onClick={() => supabase.auth.signOut()} /></VStack>;
   return <Outlet />;
 }

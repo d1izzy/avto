@@ -17,6 +17,7 @@ export interface Tenant {
   status: TenantStatus;
   hero_url: string | null;
   logo_url: string | null;
+  content: Record<string, string>;
 }
 
 export interface TenantSettings {
@@ -31,6 +32,7 @@ export interface TenantSettings {
 }
 
 export interface Service {
+  deleted_at?: string | null;
   id: string;
   tenant_id: string;
   name: string;
@@ -45,6 +47,7 @@ export interface Service {
 }
 
 export interface Resource {
+  deleted_at?: string | null;
   id: string;
   tenant_id: string;
   name: string;
@@ -61,6 +64,16 @@ export interface PublicTenantBundle {
   services: Service[];
   hours: Array<{ weekday: number; start_time: string; end_time: string; active: boolean }>;
   assets: Array<{ type: string; public_url: string; alt_text: string | null; sort_order: number }>;
+}
+
+export interface TenantAsset {
+  id: string;
+  tenant_id: string;
+  type: "logo" | "hero" | "gallery" | "icon";
+  storage_path: string;
+  public_url: string;
+  alt_text: string | null;
+  sort_order: number;
 }
 
 export interface AvailabilitySlot {
@@ -89,7 +102,15 @@ export interface BookingPublic {
 }
 
 export interface OwnerBooking extends BookingPublic {
+  service_id: string;
+  resource_id: string;
+  customer_id: string;
+  deleted_at: string | null;
   customer_phone: string;
   customer_email: string | null;
   created_at: string;
 }
+
+export interface Customer { id: string; tenant_id: string; name: string; phone: string; email: string | null; deleted_at: string | null }
+export interface ScheduleException { id: string; tenant_id: string; resource_id: string | null; date: string; start_time: string | null; end_time: string | null; reason: string | null }
+export interface CustomerProfile { name: string; phone: string; vehicle_brand: string; vehicle_model: string; license_plate: string }

@@ -1,5 +1,6 @@
-import type { ComponentProps, ReactNode } from "react";
-import { Button, HStack, Text, VStack } from "@astryxdesign/core";
+import { type ComponentProps, type ReactNode } from "react";
+import { useKeyboardViewport } from "@/lib/use-keyboard-viewport";
+import { Button, Dialog, DialogHeader, HStack, Text, VStack } from "@astryxdesign/core";
 import { LoaderCircle } from "lucide-react";
 
 export function Field({ label, error, ...props }: ComponentProps<"input"> & { label: string; error?: string }) {
@@ -20,3 +21,13 @@ export function DetailRow({ label, children }: { label: string; children: ReactN
   return <HStack gap={4} justify="between" align="start" paddingBlock={3} className="border-b border-border last:border-0"><Text color="secondary" size="sm">{label}</Text><Text weight="medium" className="text-right" size="sm">{children}</Text></HStack>;
 }
 export function Retry({ onClick }: { onClick: () => void }) { return <Button label="Попробовать снова" variant="secondary" onClick={onClick} />; }
+
+export function FormDialog({ title, open, close, busy = false, children }: { title: string; open: boolean; close: () => void; busy?: boolean; children: ReactNode }) {
+  const keyboardHeight = useKeyboardViewport();
+  return <Dialog isOpen={open} onOpenChange={() => !busy && close()} width={600} maxHeight={keyboardHeight?.height ?? "var(--studio-dialog-height)"} position={keyboardHeight ? { top: keyboardHeight.top, start: "var(--spacing-4)", end: "var(--spacing-4)" } : undefined} purpose={busy ? "required" : "form"} padding={5}>
+    <VStack gap={4} height={keyboardHeight?.height ?? "var(--studio-form-height)"} className="min-h-0">
+      <DialogHeader title={title} onOpenChange={busy ? undefined : close} />
+      <VStack gap={4} isScrollable className="min-h-0 flex-1 overscroll-contain pr-1 [&>*]:shrink-0">{children}</VStack>
+    </VStack>
+  </Dialog>;
+}

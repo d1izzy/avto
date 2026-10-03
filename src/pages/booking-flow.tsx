@@ -8,6 +8,8 @@ import { getAvailability, createBooking } from "@/features/booking/api";
 import { bookingSchema, type BookingForm } from "@/features/booking/schema";
 import { createIdempotencyKey, durationLabel, money, dateTime } from "@/lib/utils";
 import { DetailRow, Field, Loading, Notice, Retry } from "@/components/studio-ui";
+import { useKeyboardViewport } from "@/lib/use-keyboard-viewport";
+import { claimBooking, getProfile, useSession } from "@/features/auth/customer";
 import { localDate, rememberBooking } from "@/features/booking/local-bookings";
 import type { AvailabilitySlot } from "@/types/database";
 
@@ -16,6 +18,8 @@ const initial = { customerName: "", customerPhone: "", customerEmail: "", vehicl
 
 export function BookingFlow() {
   const { tenant, services, settings } = useTenant();
+  const session = useSession(); const keyboardHeight = useKeyboardViewport();
+  const profile = useQuery({ queryKey: ["customer-profile", session?.user.id], enabled: !!session, queryFn: () => getProfile(session!.user.id) });
   const [params] = useSearchParams(); const navigate = useNavigate();
   const preselected = services.some((s) => s.id === params.get("service")) ? params.get("service")! : "";
   const [step, setStep] = useState(preselected ? 1 : 0);
@@ -29,7 +33,7 @@ export function BookingFlow() {
   const service = services.find((item) => item.id === serviceId);
   const availability = useQuery({ queryKey: ["availability", tenant.slug, serviceId, date], queryFn: () => getAvailability(tenant.slug, serviceId, date), enabled: Boolean(serviceId && date >= minDate && date <= maxDate), staleTime: 0 });
   const [idempotencyKey] = useState(() => createIdempotencyKey());
-  const mutation = useMutation({ mutationFn: (values: BookingForm) => createBooking(tenant.slug, values, idempotencyKey), onSuccess: ({ token }) => { rememberBooking(tenant.slug, token); navigate(`/s/${tenant.slug}/booking/${token}`, { replace: true }); } });
+  const mutation = useMutation({ mutationFn: (values: BookingForm) => createBooking(tenant.slug, values, idempotencyKey), onSuccess: ({ token }) => { rememberBooking(tenant.slug, token); if (session) void claimBooking(token).catch(() => { /* Retried from the profile; a saved booking must still show success. */ }); navigate(`/s/${tenant.slug}/booking/${token}`, { replace: true }); } });
   const close = () => { if (!mutation.isPending) navigate(`/s/${tenant.slug}`); };
   const days = Array.from({ length: 7 }, (_, i) => localDate(new Date(today.getTime() + i * 86400000), tenant.timezone)).filter((d) => d <= maxDate);
   // A customer chooses a time. The first available box at that time is assigned automatically.
@@ -50,9 +54,10 @@ export function BookingFlow() {
     mutation.mutate(result.data);
   }
   function chooseDate(next: string) { setDate(next); setSlot(null); mutation.reset(); }
-  return <Dialog isOpen onOpenChange={close} width={560} maxHeight="90dvh" purpose={mutation.isPending ? "required" : "form"} padding={6} aria-label="Онлайн-запись">
-    <VStack gap={5}>
+  return <Dialog isOpen onOpenChange={close} width={560} maxHeight={keyboardHeight?.height ?? "var(--studio-dialog-height)"} position={keyboardHeight ? { top: keyboardHeight.top, start: "var(--spacing-4)", end: "var(--spacing-4)" } : undefined} purpose={mutation.isPending ? "required" : "form"} padding={5} aria-label="Онлайн-запись">
+    <VStack gap={4} height={keyboardHeight?.height ?? "var(--studio-form-height)"} className="min-h-0">
       <DialogHeader title={steps[step]} subtitle={`Шаг ${step + 1} из 4 · ${tenant.name}`} onOpenChange={mutation.isPending ? undefined : close} />
+      <VStack key={step} gap={5} isScrollable data-testid="booking-scroll" className="min-h-0 flex-1 overscroll-contain pr-1 [&>*]:shrink-0">
       <HStack gap={2} aria-label={`Шаг ${step + 1} из 4`}>{steps.map((s, i) => <VStack key={s} className={`h-1 flex-1 rounded-full ${i <= step ? "bg-accent-bg" : "bg-muted"}`} />)}</HStack>
       {!settings.booking_enabled ? <Notice>Студия временно приостановила онлайн-запись. Свяжитесь с ней по телефону.</Notice> : <>
       {step > 0 && <Button label="Назад" variant="ghost" icon={<ArrowLeft />} onClick={() => setStep(step - 1)} isDisabled={mutation.isPending} />}
@@ -64,7 +69,7 @@ export function BookingFlow() {
         <Text size="sm" color="secondary">Свободное время · часовой пояс студии ({tenant.timezone})</Text>
         {availability.isFetching ? <Loading label="Ищем свободное время…" /> : availability.isError ? <><Notice error>Не удалось загрузить время.</Notice><Retry onClick={() => availability.refetch()} /></> : slots.length === 0 ? <Notice>На эту дату свободного времени нет. Выберите другой день.</Notice> : <Grid columns={4} gap={2}>{slots.map((item) => <Button key={item.starts_at} label={new Intl.DateTimeFormat("ru-RU", { timeZone: tenant.timezone, hour: "2-digit", minute: "2-digit" }).format(new Date(item.starts_at))} variant={slot?.starts_at === item.starts_at ? "primary" : "secondary"} size="lg" aria-pressed={slot?.starts_at === item.starts_at} onClick={() => { setSlot(item); mutation.reset(); }} />)}</Grid>}
         {slot && <Text color="secondary" size="sm">Ориентир выдачи: {dateTime(slot.ends_at, tenant.timezone)}</Text>}
-        <Button variant="primary" label="Продолжить" size="lg" isDisabled={!slot || availability.isFetching} onClick={() => setStep(2)} />
+        <Button variant="primary" label="Продолжить" size="lg" isDisabled={!slot || availability.isFetching} onClick={() => { const saved = profile.data; if (saved) setForm((old) => ({ customerName: old.customerName || saved.name, customerPhone: old.customerPhone || saved.phone, customerEmail: old.customerEmail || session?.user.email || "", vehicleBrand: old.vehicleBrand || saved.vehicle_brand, vehicleModel: old.vehicleModel || saved.vehicle_model, licensePlate: old.licensePlate || saved.license_plate })); setStep(2); }} />
       </VStack>}
       {step === 2 && <form onSubmit={(e) => { e.preventDefault(); vehicleNext(); }} noValidate><VStack gap={4}>
         {!!Object.keys(errors).length && <VStack ref={errorRef} tabIndex={-1} gap={2}><Notice error>Проверьте отмеченные поля. Введённые данные сохранены.</Notice>{Object.entries(errors).map(([field, message]) => <a className="text-sm text-error underline" key={field} href={`#${field}`}>{message}</a>)}</VStack>}
@@ -82,6 +87,7 @@ export function BookingFlow() {
         <Text size="sm" color="secondary" justify="center">Нажимая кнопку, вы подтверждаете корректность данных.</Text>
       </VStack>}
       </>}
+      </VStack>
     </VStack>
   </Dialog>;
 }

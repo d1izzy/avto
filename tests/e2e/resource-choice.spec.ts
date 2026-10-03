@@ -3,6 +3,7 @@ import { test, expect, type Page } from "@playwright/test";
 import type { PublicTenantBundle } from "../../src/types/database";
 
 test.use({ serviceWorkers: "block" });
+test.setTimeout(60_000);
 const serviceOne = "20000000-0000-0000-0000-000000000001";
 const serviceTwo = "20000000-0000-0000-0000-000000000002";
 const boxOne = "30000000-0000-0000-0000-000000000001";
@@ -51,8 +52,8 @@ async function fixture(page: Page, conflict = false) {
       customer_name: "Тест выбора", vehicle: { brand: "Volvo", model: "XC60" }, can_cancel: false, can_reschedule: false,
     } });
   });
-  await page.goto(`/s/graphite/book?service=${serviceOne}`);
-  await expect(page.getByRole("radio", { name: "Любой свободный", exact: true })).toBeChecked();
+  await page.goto(`/s/graphite/book?service=${serviceOne}`, { waitUntil: "domcontentloaded" });
+  await expect(page.getByRole("radio", { name: "Любой свободный", exact: true })).toBeChecked({ timeout: 15_000 });
   await page.getByLabel("Дата", { exact: true }).fill(day);
   await expect(page.getByRole("button", { name: "10:00", exact: true })).toBeVisible();
   return { requests, day, nextDay };

@@ -1,10 +1,10 @@
-import { useId } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Button, Card, Grid, Heading, HStack, Text, VStack } from "@astryxdesign/core";
 import { ArrowUpRight, Clock3, MapPin, Phone, Smartphone } from "lucide-react";
 import { useTenant } from "@/features/tenant/context";
 import { money, durationLabel } from "@/lib/utils";
 import { BookingFlow } from "./booking-flow";
+import { PixelGlow } from "@/components/pixel-glow";
 
 export function TenantHome({ booking = false }: { booking?: boolean }) {
   const { tenant, services, hours, assets, settings } = useTenant();
@@ -46,10 +46,8 @@ export function TenantHome({ booking = false }: { booking?: boolean }) {
 }
 
 function PromoCard({ brand, icon, title, body, action, footnote }: { brand?: string; icon?: React.ReactNode; title: string; body: string; action: React.ReactNode; footnote?: string }) {
-  const patternId = useId();
   return <Card padding={5} className="relative overflow-hidden bg-body">
-    <VStack aria-hidden className="pointer-events-none absolute inset-0 bg-[image:var(--studio-promo-background)]" />
-    <svg aria-hidden className="pointer-events-none absolute inset-0 size-full text-body"><defs><pattern id={patternId} width="5" height="5" patternUnits="userSpaceOnUse"><path d="M0 0H5V5H0Z M1 1V4H4V1Z" fill="currentColor" fillRule="evenodd" /></pattern></defs><rect width="100%" height="100%" fill={`url(#${patternId})`} /></svg>
+    <PixelGlow phase={brand ? 1.6 : 0} />
     <VStack gap={4} className="relative">
       {brand && <HStack gap={3} align="center"><HStack padding={3} className="rounded-xl bg-accent-bg text-on-accent">{icon}</HStack><VStack gap={1}><Text weight="semibold">{brand}</Text><Text size="sm" color="secondary">Приложение студии</Text></VStack></HStack>}
       <VStack gap={2}><Heading level={2} className={brand ? "max-w-xs text-3xl leading-tight" : undefined}>{title}</Heading><Text color="secondary">{body}</Text></VStack>{action}{footnote && <Text size="sm" color="secondary">{footnote}</Text>}

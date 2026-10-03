@@ -21,7 +21,10 @@ export function studioTheme(accent = "#4285ff", name = "studio") {
       "--radius-element": "12px",
     },
     localTokens: {
-      "--studio-promo-background": "radial-gradient(ellipse at 78% 18%, color-mix(in srgb, var(--color-accent) 48%, transparent), transparent 30%), radial-gradient(ellipse at 40% 100%, color-mix(in srgb, var(--color-accent) 32%, transparent), transparent 45%)",
+      "--studio-pixel-step": "4px",
+      "--studio-pixel-dot": "2.5px",
+      "--studio-glow-cycle": "14000ms",
+      "--studio-glow-strength": "0.55",
       "--studio-dialog-height": "calc(100dvh - 2 * var(--spacing-4))",
       "--studio-form-height": "calc(100dvh - 2 * var(--spacing-10))",
       "--studio-control-height": "48px",

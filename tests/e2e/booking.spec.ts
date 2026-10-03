@@ -30,7 +30,8 @@ test("customer can confirm, reload and cancel a persisted booking", async ({ pag
     if (available.length) break;
   }
   if (!available.length) throw new Error("No cancellable future slot available for verification");
-  const slot = available[0];
+  // Prefer a box other than the automatic first choice, to verify an explicit selection.
+  const slot = available.find((item) => item.resource_id !== available[0].resource_id) ?? available[0];
   const slotLabel = new Intl.DateTimeFormat("ru-RU", { timeZone: bundle.tenant.timezone, hour: "2-digit", minute: "2-digit" }).format(new Date(slot.starts_at));
   const customerName = `E2E verification ${randomUUID().slice(0, 8)}`;
   let token: string | undefined;
@@ -38,6 +39,7 @@ test("customer can confirm, reload and cancel a persisted booking", async ({ pag
   try {
     await page.goto("/s/graphite/book");
     await page.getByRole("dialog").getByRole("button", { name: new RegExp(service.name) }).click();
+    await page.getByRole("radio", { name: slot.resource_name, exact: true }).check();
     await page.getByLabel("Дата", { exact: true }).fill(date);
     await page.getByRole("button", { name: slotLabel, exact: true }).first().click();
     await page.getByRole("button", { name: /Продолжить/ }).click();
@@ -59,9 +61,11 @@ test("customer can confirm, reload and cancel a persisted booking", async ({ pag
     // Deliberately non-deliverable contact; never use a real customer's phone.
     await page.getByLabel("Телефон", { exact: true }).fill("+00000000000");
     await page.getByRole("button", { name: /Проверить запись/ }).click();
+    await expect(page.getByRole("dialog").getByText(slot.resource_name, { exact: true })).toBeVisible();
     const responsePromise = page.waitForResponse((response) => response.url() === `${url}/rest/v1/rpc/create_public_booking` && response.request().method() === "POST");
     await page.getByRole("button", { name: /Подтвердить запись/ }).click();
     const response = await responsePromise;
+    expect(response.request().postDataJSON().p_resource_id).toBe(slot.resource_id);
     expect(response.ok(), `Booking confirmation HTTP status ${response.status()}`).toBe(true);
     const result = await response.json() as { token: string; booking_id: string };
     token = result.token;
@@ -75,6 +79,7 @@ test("customer can confirm, reload and cancel a persisted booking", async ({ pag
     expect(booking.status).toBe("confirmed");
     expect(booking.customer_name).toBe(customerName);
     expect(booking.vehicle).toMatchObject({ brand: "Volvo", model: "XC60" });
+    expect(booking.resource_name).toBe(slot.resource_name);
     expect(new Date(booking.starts_at).getTime()).toBe(new Date(slot.starts_at).getTime());
 
     await page.getByRole("button", { name: "Отменить запись", exact: true }).click();

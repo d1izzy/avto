@@ -62,8 +62,16 @@ export interface PublicTenantBundle {
   tenant: Tenant;
   settings: TenantSettings;
   services: Service[];
+  resources: BookingResource[];
   hours: Array<{ weekday: number; start_time: string; end_time: string; active: boolean }>;
   assets: Array<{ type: string; public_url: string; alt_text: string | null; sort_order: number }>;
+}
+
+export interface BookingResource {
+  id: string;
+  name: string;
+  description: string | null;
+  service_ids: string[];
 }
 
 export interface TenantAsset {

@@ -3,8 +3,11 @@ import { AppShell, HStack, VStack, Text } from "@astryxdesign/core";
 import { CalendarCheck2, House, Sparkles, UserRound } from "lucide-react";
 import { useTenant } from "@/features/tenant/context";
 import { cn } from "@/lib/utils";
+import { useEmailHandoff } from "@/features/auth/email-handoff";
 
 export function PublicLayout() {
+  // The installed app may restart on its home page after the email was opened.
+  useEmailHandoff();
   const { tenant } = useTenant(); const location = useLocation(); const base = `/s/${tenant.slug}`;
   if (location.pathname.includes("/owner")) return <Outlet />;
   return <AppShell height="auto" variant="wash" contentPadding={0} topNav={

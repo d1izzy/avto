@@ -1,6 +1,9 @@
 /// <reference lib="dom" />
 import { test, expect, type Page } from "@playwright/test";
 
+// PWA network interception would bypass page.route and send fixture JWTs to the live API.
+test.use({ serviceWorkers: "block" });
+
 const account = "/s/graphite/account";
 const address = "customer@example.com";
 const user = {

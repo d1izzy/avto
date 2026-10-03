@@ -63,7 +63,7 @@ async function mockAuth(page: Page, options: { status?: number; code?: string; u
 
 test("email request shows a persistent pending screen, cooldown and change-address action", async ({ page }) => {
   const requests = await mockAuth(page);
-  await page.goto(account);
+  await page.goto(account, { waitUntil: "domcontentloaded" });
   await page.getByLabel("Почта", { exact: true }).fill(address);
   await page.getByRole("button", { name: "Получить ссылку", exact: true }).click();
   await expect(page.getByRole("heading", { name: "Письмо отправлено" })).toBeVisible();
@@ -76,7 +76,7 @@ test("email request shows a persistent pending screen, cooldown and change-addre
   expect(redirect.searchParams.get("email_flow")).toMatch(/^[a-f0-9]{64}$/);
   expect(redirect.searchParams.get("sb_flow_id")).toMatch(/^[a-f0-9]{32}$/);
   expect(requests[0].challenge).toHaveLength(43);
-  await page.reload();
+  await page.reload({ waitUntil: "domcontentloaded" });
   await expect(page.getByRole("heading", { name: "Письмо отправлено" })).toBeVisible();
   expect(requests).toHaveLength(1);
   await page.getByRole("button", { name: "Изменить адрес почты" }).click();
@@ -94,7 +94,7 @@ test("email request shows a persistent pending screen, cooldown and change-addre
 test("email confirmation callback opens a verified profile, persists it and signs out", async ({ page }) => {
   await mockAuth(page);
   // The mocked Auth server verifies the link. This tests the app, not delivery to an inbox.
-  await page.goto(`${account}${callbackHash()}`);
+  await page.goto(`${account}${callbackHash()}`, { waitUntil: "domcontentloaded" });
   await expect(page.getByText("Почта подтверждена", { exact: true })).toBeVisible();
   await expect(page.getByText(address, { exact: true })).toBeVisible();
   await expect(page.getByRole("button", { name: "Сохранить профиль" })).toHaveCount(0);
@@ -102,7 +102,7 @@ test("email confirmation callback opens a verified profile, persists it and sign
   await page.screenshot({ path: test.info().outputPath("email-confirmed.png"), fullPage: true });
   await page.getByRole("button", { name: "Редактировать данные" }).click();
   await expect(page.getByRole("button", { name: "Сохранить профиль" })).toBeVisible();
-  await page.reload();
+  await page.reload({ waitUntil: "domcontentloaded" });
   await expect(page.getByText("Почта подтверждена", { exact: true })).toBeVisible();
   await page.getByRole("button", { name: "Выйти из профиля" }).click();
   await expect(page.getByRole("button", { name: "Получить ссылку", exact: true })).toBeVisible();
@@ -111,14 +111,14 @@ test("email confirmation callback opens a verified profile, persists it and sign
 
 test("callback through site root arrives in the profile", async ({ page }) => {
   await mockAuth(page);
-  await page.goto(`/${callbackHash()}`);
+  await page.goto(`/${callbackHash()}`, { waitUntil: "domcontentloaded" });
   await expect(page.getByText("Почта подтверждена", { exact: true })).toBeVisible();
   await expect(page).toHaveURL(new RegExp(`${account}$`));
 });
 
 test("expired link and rejected delivery never report successful confirmation", async ({ page }) => {
   await mockAuth(page, { status: 403, code: "email_address_not_authorized" });
-  await page.goto(`${account}#error=access_denied&error_code=otp_expired&error_description=expired`);
+  await page.goto(`${account}#error=access_denied&error_code=otp_expired&error_description=expired`, { waitUntil: "domcontentloaded" });
   await expect(page.getByRole("alert")).toContainText("Ссылка для входа недействительна");
   await page.getByLabel("Почта", { exact: true }).fill(address);
   await page.getByRole("button", { name: "Получить ссылку", exact: true }).click();
@@ -130,13 +130,13 @@ test("expired link and rejected delivery never report successful confirmation", 
 
 test("rate limiting shows a retry explanation and preserves the address", async ({ page }) => {
   const requests = await mockAuth(page, { status: 429, code: "over_email_send_rate_limit" });
-  await page.goto(account);
+  await page.goto(account, { waitUntil: "domcontentloaded" });
   await page.getByLabel("Почта", { exact: true }).fill(address);
   await page.getByRole("button", { name: "Получить ссылку", exact: true }).click();
   await expect(page.getByRole("alert")).toContainText("Лимит отправки писем временно исчерпан");
   await expect(page.getByLabel("Почта", { exact: true })).toHaveValue(address);
   await expect(page.getByRole("button", { name: /Получить ссылку через/ })).toBeDisabled();
-  await page.reload();
+  await page.reload({ waitUntil: "domcontentloaded" });
   await expect(page.getByLabel("Почта", { exact: true })).toHaveValue(address);
   await expect(page.getByText(/Лимит отправки писем временно исчерпан/)).toBeVisible();
   await page.clock.install(); await page.clock.fastForward(61_000);
@@ -148,7 +148,7 @@ test("email opened in an isolated browser signs in only the requesting app, even
   test.setTimeout(60_000);
   const mailbox: Mailbox = new Map(); const codes = new Map<string, AuthCode>();
   const requests = await mockAuth(page, { mailbox, codes });
-  await page.goto(account);
+  await page.goto(account, { waitUntil: "domcontentloaded" });
   await page.getByLabel("Почта", { exact: true }).fill(address);
   await page.getByRole("button", { name: "Получить ссылку", exact: true }).click();
   await expect(page.getByRole("heading", { name: "Письмо отправлено" })).toBeVisible();
@@ -158,7 +158,7 @@ test("email opened in an isolated browser signs in only the requesting app, even
   const mailContext = await browser.newContext({ serviceWorkers: "block" });
   const mailPage = await mailContext.newPage();
   await mockAuth(mailPage, { mailbox, codes });
-  await mailPage.goto(callback.href);
+  await mailPage.goto(callback.href, { waitUntil: "domcontentloaded" });
   await expect(mailPage.getByRole("heading", { name: "Вернитесь в приложение" })).toBeVisible();
   await expect(mailPage.getByText("Почта подтверждена", { exact: true })).toHaveCount(0);
   expect(new URL(mailPage.url()).search).toBe("");
@@ -166,11 +166,11 @@ test("email opened in an isolated browser signs in only the requesting app, even
   await mailPage.screenshot({ path: test.info().outputPath("return-to-app.png"), fullPage: true });
   const reopened = await context.newPage();
   await mockAuth(reopened, { mailbox, codes });
-  await reopened.goto("/s/graphite"); // PWA manifest start_url, not the previously open profile.
+  await reopened.goto("/s/graphite", { waitUntil: "domcontentloaded" }); // PWA manifest start_url, not the previously open profile.
   await expect.poll(() => codes.get(code)?.used).toBe(true);
-  await reopened.goto(account);
+  await reopened.goto(account, { waitUntil: "domcontentloaded" });
   await expect(reopened.getByText("Почта подтверждена", { exact: true })).toBeVisible();
-  await reopened.reload();
+  await reopened.reload({ waitUntil: "domcontentloaded" });
   await expect(reopened.getByText("Почта подтверждена", { exact: true })).toBeVisible();
   await reopened.screenshot({ path: test.info().outputPath("pwa-confirmed.png"), fullPage: true });
   expect(requests).toHaveLength(1);
@@ -181,7 +181,7 @@ test("a rejected resend keeps the first link usable and the server still require
   const mailbox: Mailbox = new Map(); const codes = new Map<string, AuthCode>();
   const options = { mailbox, codes, status: 200, code: undefined as string | undefined };
   const requests = await mockAuth(page, options);
-  await page.goto(account);
+  await page.goto(account, { waitUntil: "domcontentloaded" });
   await page.getByLabel("Почта", { exact: true }).fill(address);
   await page.getByRole("button", { name: "Получить ссылку", exact: true }).click();
   await expect(page.getByRole("heading", { name: "Письмо отправлено" })).toBeVisible();
@@ -199,14 +199,14 @@ test("a rejected resend keeps the first link usable and the server still require
 test("expired confirmation stays signed out and never retries sending automatically", async ({ page }) => {
   const mailbox: Mailbox = new Map();
   const requests = await mockAuth(page, { mailbox });
-  await page.goto(account);
+  await page.goto(account, { waitUntil: "domcontentloaded" });
   await page.getByLabel("Почта", { exact: true }).fill(address);
   await page.getByRole("button", { name: "Получить ссылку", exact: true }).click();
   await expect(page.getByRole("heading", { name: "Письмо отправлено" })).toBeVisible();
   mailbox.clear();
   await expect(page.getByRole("alert")).toContainText("Время подтверждения истекло", { timeout: 10_000 });
   await expect(page.getByText("Почта подтверждена", { exact: true })).toHaveCount(0);
-  await page.reload();
+  await page.reload({ waitUntil: "domcontentloaded" });
   await expect(page.getByRole("alert")).toContainText("Время подтверждения истекло");
   expect(requests).toHaveLength(1);
 });
@@ -214,13 +214,13 @@ test("expired confirmation stays signed out and never retries sending automatica
 test("the link also completes sign-in in the original browser", async ({ page }) => {
   const mailbox: Mailbox = new Map(); const codes = new Map<string, AuthCode>();
   const requests = await mockAuth(page, { mailbox, codes });
-  await page.goto(account);
+  await page.goto(account, { waitUntil: "domcontentloaded" });
   await page.getByLabel("Почта", { exact: true }).fill(address);
   await page.getByRole("button", { name: "Получить ссылку", exact: true }).click();
   await expect(page.getByRole("heading", { name: "Письмо отправлено" })).toBeVisible();
   const code = randomUUID(); codes.set(code, { challenge: requests[0].challenge });
   const callback = new URL(requests[0].redirect!); callback.searchParams.set("code", code);
-  await page.goto(callback.href);
+  await page.goto(callback.href, { waitUntil: "domcontentloaded" });
   await expect(page.getByText("Почта подтверждена", { exact: true })).toBeVisible();
   expect(new URL(page.url()).search).toBe("");
   await expect(page.getByRole("heading", { name: "Вернитесь в приложение" })).toHaveCount(0);
@@ -233,7 +233,7 @@ test("the link also completes sign-in in the original browser", async ({ page })
 test("a relayed code from another login cannot authenticate the requesting app", async ({ page }) => {
   const mailbox: Mailbox = new Map(); const codes = new Map<string, AuthCode>();
   const requests = await mockAuth(page, { mailbox, codes });
-  await page.goto(account);
+  await page.goto(account, { waitUntil: "domcontentloaded" });
   await page.getByLabel("Почта", { exact: true }).fill(address);
   await page.getByRole("button", { name: "Получить ссылку", exact: true }).click();
   await expect(page.getByRole("heading", { name: "Письмо отправлено" })).toBeVisible();
@@ -248,7 +248,7 @@ test("a relayed code from another login cannot authenticate the requesting app",
 
 test("an unconfirmed account is not labelled as verified", async ({ page }) => {
   await mockAuth(page, { unconfirmed: true });
-  await page.goto(`${account}${callbackHash()}`);
+  await page.goto(`${account}${callbackHash()}`, { waitUntil: "domcontentloaded" });
   await expect(page.getByRole("alert")).toContainText("Почта ещё не подтверждена");
   await expect(page.getByText("Почта подтверждена", { exact: true })).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Редактировать данные" })).toHaveCount(0);
@@ -256,12 +256,12 @@ test("an unconfirmed account is not labelled as verified", async ({ page }) => {
 
 test("existing real account is verified by Auth and can read its saved profile", async ({ page }) => {
   test.skip(!process.env.E2E_OWNER_EMAIL || !process.env.E2E_OWNER_PASSWORD, "Requires explicit test credentials; sends no email");
-  await page.goto("/s/graphite/owner");
+  await page.goto("/s/graphite/owner", { waitUntil: "domcontentloaded" });
   await page.getByLabel("Почта", { exact: true }).fill(process.env.E2E_OWNER_EMAIL!);
   await page.getByLabel("Пароль", { exact: true }).fill(process.env.E2E_OWNER_PASSWORD!);
   await page.getByRole("button", { name: "Войти", exact: true }).click();
   await expect(page.getByRole("heading", { name: "Обзор студии" })).toBeVisible();
-  await page.goto(account);
+  await page.goto(account, { waitUntil: "domcontentloaded" });
   await expect(page.getByText("Почта подтверждена", { exact: true })).toBeVisible();
   await page.getByRole("button", { name: "Редактировать данные" }).click();
   await expect(page.getByRole("button", { name: "Сохранить профиль" })).toBeVisible();
